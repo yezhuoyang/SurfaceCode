@@ -1,5 +1,29 @@
 from qiskit import QuantumCircuit
+from typing import List
 
+
+
+class stabalizer:
+    
+    '''
+    The stabilzier is a list of typle.
+    For example:
+          stab=[('X',1),('X',2),('Z',5),('Z',6)] 
+          means the stabilizer is X1-X2-Z5-Z6
+    '''
+    def __init__(self,stab:List[tuple])->None:
+        self.__stab=stab
+
+
+    def __str__(self) -> str:
+        strresult=""
+        index=0
+        for (stype,qubit) in self.__stab:
+            strresult=strresult+stype+str(qubit)
+            if index<len(self.__stab)-1:
+                strresult=strresult+"-"
+            index=index+1
+        return strresult
 
 
 
@@ -11,7 +35,7 @@ class surfaceCode:
     Initialize a d*d surface code
     '''
     def __init__(self,distance:int) -> None:
-        self.__distance=distance
+        self._distance=distance
         '''
         A standard surface code has 2*distance**2-1 qubits and distance**2-1 stabilizers
         Following is the dataqubit of a 4*4 surface code                                                                                    
@@ -45,10 +69,92 @@ class surfaceCode:
         
     '''
     Calculate the satbilizer
+    Each stabilizer is stored in a list.
+    For example, S1=[1,2,5,6]
     '''    
     def calc_stab(self):
-        pass 
+        '''
+        Add X stabilizers in side the boundary
+                        Qa------Qa+1
+                        |       |
+                        |       |
+                        Qa+d----Qa+d+1
+        line 0: Q1-Q2-Q3-...-Qd
+        line 1: Qd+1-Q6-Q7-Q8-...-Q2d
+        ...
+        line k: Qkd+1-Qkd+2-...-Q(k+1)d
+                        
+        '''
+        d=self._distance
+        currentLine=0
+        lefttopIndex=1
+        while currentLine<d  and lefttopIndex+d+1<=d**2:
+            self._stab.append(stabalizer([('X',lefttopIndex),('X',lefttopIndex+1),('X',lefttopIndex+d),('X',lefttopIndex+d+1)]))
+            
+            if lefttopIndex+2 < (currentLine+1)*d:
+                lefttopIndex=lefttopIndex+2
+            else:
+                currentLine=currentLine+1
+                lefttopIndex=lefttopIndex+3
+                
+        '''
+        Add Z stabilizers inside the boundary
+        '''
+        currentLine=0
+        lefttopIndex=2
+        while currentLine<d  and lefttopIndex+d+1<=d**2:
+            self._stab.append(stabalizer([('Z',lefttopIndex),('Z',lefttopIndex+1),('Z',lefttopIndex+d),('Z',lefttopIndex+d+1)]))
+            
+            if lefttopIndex+2 < (currentLine+1)*d:
+                lefttopIndex=lefttopIndex+2
+            else:
+                currentLine=currentLine+1
+                lefttopIndex=lefttopIndex+3       
+        '''
+        Add X stabilizers that attached to the top and bottom boundary(Tough boundary)
+        '''        
+        leftindex=2
+        while leftindex+1<=d:
+            self._stab.append(stabalizer([('X',leftindex),('X',leftindex+1)]))
+            leftindex+=2
+        leftindex=d*(d-1)+2
+        while leftindex+1<=d**2:
+            self._stab.append(stabalizer([('X',leftindex),('X',leftindex+1)]))
+            leftindex+=2
+        '''
+        Add Z stabilizers that attached to the left and right boundary(Soft boundary)
+        '''          
+        topindex=1     
+        while topindex+d<=(d-1)*d+1:
+            self._stab.append(stabalizer([('Z',topindex),('Z',topindex+d)]))
+            topindex=topindex+2*d
+        topindex=d
+        while topindex+d<=d**2:
+            self._stab.append(stabalizer([('Z',topindex),('Z',topindex+d)]))
+            topindex=topindex+2*d
+
     
+    
+    def print_stab(self):
+        for s in self._stab:
+            print(s)
+    
+    
+    
+    '''
+    Surface code is a CSS code, which means it has X and Z stabilizers.
+    We can calculate the check matrix H
+    For example, a code with stabilizers: S1=Z1Z2, S2=Z2Z3, S3=X1X2, S4=X2X3 has the following check matrix:
+                                Z1  Z2  Z3  X1  X2  X3                                       
+                            S1  1   1   0   0   0   0 
+                        H=  S2  0   1   1   0   0   0   
+                            S3  0   0   0   1   1   0 
+                            S4  0   0   0   0   1   1 
+                        
+    '''                     
+    
+    def calculate_H_matrix(self):
+        pass
     
     
         
@@ -57,3 +163,9 @@ class surfaceCode:
     
     
     
+    
+    
+if __name__ == '__main__':
+    suf=surfaceCode(4)
+    suf.calc_stab()
+    suf.print_stab()
