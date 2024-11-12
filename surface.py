@@ -232,6 +232,9 @@ class surfaceCode:
     
     
         
+    def get_check_matrix(self)->np.array:
+        return self._Hmatrix
+    
     
     
     
