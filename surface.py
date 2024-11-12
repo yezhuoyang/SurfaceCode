@@ -64,8 +64,29 @@ class surfaceCode:
         
         
     def draw_surface(self)->None:
-        pass    
-        
+        resultstr=""
+        for line in range(self._distance):
+            linestr=""
+            for column in range(self._distance):
+                index=line*self._distance+column+1
+                if(column<self._distance-1):
+                    if(len(str(index))==1):
+                        linestr=linestr+"Q"+str(index)+"----"
+                    if(len(str(index))==2):
+                        linestr=linestr+"Q"+str(index)+"---"
+                else:
+                    linestr=linestr+"Q"+str(index)
+
+            if line<self._distance-1:
+                linestr=linestr+"\n"
+                for column in range(self._distance-1):
+                    linestr=linestr+"|     "
+                linestr=linestr+"|\n"
+                for column in range(self._distance-1):
+                    linestr=linestr+"|     "
+                linestr=linestr+"|\n"       
+            resultstr=resultstr+linestr
+        print(resultstr)     
         
     '''
     Calculate the satbilizer
@@ -168,4 +189,5 @@ class surfaceCode:
 if __name__ == '__main__':
     suf=surfaceCode(4)
     suf.calc_stab()
-    suf.print_stab()
+    suf.draw_surface()
+    #suf.print_stab()
