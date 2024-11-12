@@ -49,3 +49,14 @@ H=surf.get_check_matrix()
 print(H)
 ```
 
+
+You can inject pauli error and run statevector simulation by:
+
+```python
+suf=surfaceCode(3)
+suf.inject_error({1:'X'})
+suf.compile_syndrome_circuit()
+result=suf.run_simulation(1)
+print(result)
+```
+

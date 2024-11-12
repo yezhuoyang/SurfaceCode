@@ -1,7 +1,8 @@
 from qiskit import QuantumCircuit
 from typing import List
 import numpy as np
-
+from qiskit_aer import AerSimulator
+from qiskit.visualization import plot_histogram
 
 class stabalizer:
     
@@ -65,6 +66,7 @@ class surfaceCode:
         self._nXstab=0
         self._nZstab=0
         self._stab=[]
+        self._error={}
         self.calc_stab()
         self._Hmatrix=np.zeros((self._nstab, 2*self._ndataqubits),dtype=int)
         self.calculate_H_matrix()
@@ -202,6 +204,24 @@ class surfaceCode:
             synindex+=1 
         
         
+    '''
+    Inject error to the data qubit of the surface code
+    Error is a dictionary, the key is the qubit index, the value is the error type
+    For example, error={1:'X',2:'Z',3:'Y'} means qubit 1 has X error, qubit 2 has Z error, qubit 3 has Y error
+    '''
+    def inject_error(self,error:dict):
+        self._error=error
+        for qubit in error:
+            if error[qubit]=='X':
+                self._circuit.x(qubit)
+            if error[qubit]=='Z':
+                self._circuit.z(qubit)
+            if error[qubit]=='Y':
+                self._circuit.y(qubit)
+    
+             
+        
+        
     def get_circuit(self)->QuantumCircuit:
         return self._circuit
         
@@ -235,16 +255,22 @@ class surfaceCode:
     def get_check_matrix(self)->np.array:
         return self._Hmatrix
     
-    
-    
-    
+
+    def run_simulation(self,shots:int)->dict:
+        backend = AerSimulator()
+        job = backend.run(self._circuit, shots=shots)
+        output = job.result().get_counts() 
+        return output
     
     
     
     
 if __name__ == '__main__':
-    suf=surfaceCode(4)
-    suf.calc_stab()
+    suf=surfaceCode(3)
+    suf.inject_error({1:'X'})
     #suf.draw_surface()
     #suf.print_stab()
-    print(suf._Hmatrix)
+    #print(suf._Hmatrix)
+    suf.compile_syndrome_circuit()
+    result=suf.run_simulation(1)
+    print(result)
