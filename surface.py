@@ -1,6 +1,6 @@
 from qiskit import QuantumCircuit
 from typing import List
-
+import numpy as np
 
 
 class stabalizer:
@@ -24,6 +24,10 @@ class stabalizer:
                 strresult=strresult+"-"
             index=index+1
         return strresult
+    
+    
+    def get_stab(self)->List[tuple]:
+        return self.__stab
 
 
 
@@ -56,8 +60,14 @@ class surfaceCode:
         Q13:(3,0), Q14:(3,1), Q15:(3,2), Q16:(3,3)                                     
         '''
         self._circuit=QuantumCircuit(2*distance**2-1,distance**2-1)
+        self._ndataqubits=distance**2
+        self._nstab=distance**2-1
+        self._nXstab=0
+        self._nZstab=0
         self._stab=[]
-        
+        self.calc_stab()
+        self._Hmatrix=np.zeros((self._nstab, 2*self._ndataqubits),dtype=int)
+        self.calculate_H_matrix()
         
     def get_xy(self,qubit:int)->tuple:
         return qubit//self.__distance,qubit%self.__distance
@@ -111,13 +121,27 @@ class surfaceCode:
         lefttopIndex=1
         while currentLine<d  and lefttopIndex+d+1<=d**2:
             self._stab.append(stabalizer([('X',lefttopIndex),('X',lefttopIndex+1),('X',lefttopIndex+d),('X',lefttopIndex+d+1)]))
-            
+            self._nXstab+=1
             if lefttopIndex+2 < (currentLine+1)*d:
                 lefttopIndex=lefttopIndex+2
             else:
                 currentLine=currentLine+1
                 lefttopIndex=lefttopIndex+3
-                
+    
+        '''
+        Add X stabilizers that attached to the top and bottom boundary(Tough boundary)
+        '''        
+        leftindex=2
+        while leftindex+1<=d:
+            self._stab.append(stabalizer([('X',leftindex),('X',leftindex+1)]))
+            self._nXstab+=1
+            leftindex+=2
+        leftindex=d*(d-1)+2
+        while leftindex+1<=d**2:
+            self._stab.append(stabalizer([('X',leftindex),('X',leftindex+1)]))
+            self._nXstab+=1
+            leftindex+=2
+                            
         '''
         Add Z stabilizers inside the boundary
         '''
@@ -125,43 +149,64 @@ class surfaceCode:
         lefttopIndex=2
         while currentLine<d  and lefttopIndex+d+1<=d**2:
             self._stab.append(stabalizer([('Z',lefttopIndex),('Z',lefttopIndex+1),('Z',lefttopIndex+d),('Z',lefttopIndex+d+1)]))
-            
+            self._nZstab+=1
             if lefttopIndex+2 < (currentLine+1)*d:
                 lefttopIndex=lefttopIndex+2
             else:
                 currentLine=currentLine+1
                 lefttopIndex=lefttopIndex+3       
-        '''
-        Add X stabilizers that attached to the top and bottom boundary(Tough boundary)
-        '''        
-        leftindex=2
-        while leftindex+1<=d:
-            self._stab.append(stabalizer([('X',leftindex),('X',leftindex+1)]))
-            leftindex+=2
-        leftindex=d*(d-1)+2
-        while leftindex+1<=d**2:
-            self._stab.append(stabalizer([('X',leftindex),('X',leftindex+1)]))
-            leftindex+=2
+
         '''
         Add Z stabilizers that attached to the left and right boundary(Soft boundary)
         '''          
         topindex=1     
         while topindex+d<=(d-1)*d+1:
             self._stab.append(stabalizer([('Z',topindex),('Z',topindex+d)]))
+            self._nZstab+=1
             topindex=topindex+2*d
         topindex=d
         while topindex+d<=d**2:
             self._stab.append(stabalizer([('Z',topindex),('Z',topindex+d)]))
+            self._nZstab+=1
             topindex=topindex+2*d
 
+
+    def get_stab_by_index(self,index:int)->stabalizer:
+        return self._stab[index]
     
     
     def print_stab(self):
         for s in self._stab:
             print(s)
     
+
     
-    
+    def compile_syndrome_circuit(self):
+        synindex=0
+        for stab in self._stab:
+            tmpstab=stab.get_stab()
+            if tmpstab[0][0]=='X':
+                self._circuit.h(self._ndataqubits+synindex)
+                for (typestr,qubit) in tmpstab:
+                        self._circuit.cx(self._ndataqubits+synindex,qubit)
+                
+                self._circuit.h(self._ndataqubits+synindex)
+            else:
+                
+                for (typestr,qubit) in tmpstab:
+                        self._circuit.cx(qubit,self._ndataqubits+synindex)                     
+            '''
+            Measure the syndrome qubit
+            ''' 
+            self._circuit.measure(self._ndataqubits+synindex,synindex)
+            synindex+=1 
+        
+        
+    def get_circuit(self)->QuantumCircuit:
+        return self._circuit
+        
+        
+        
     '''
     Surface code is a CSS code, which means it has X and Z stabilizers.
     We can calculate the check matrix H
@@ -175,7 +220,15 @@ class surfaceCode:
     '''                     
     
     def calculate_H_matrix(self):
-        pass
+        stabindex=0
+        for stab in self._stab:
+            tmpstab=stab.get_stab()
+            for (typestr,qubit) in tmpstab:
+                if typestr=='Z':
+                    self._Hmatrix[stabindex][qubit-1]=1
+                else:
+                    self._Hmatrix[stabindex][self._ndataqubits+qubit-1]=1
+            stabindex+=1
     
     
         
@@ -189,5 +242,6 @@ class surfaceCode:
 if __name__ == '__main__':
     suf=surfaceCode(4)
     suf.calc_stab()
-    suf.draw_surface()
+    #suf.draw_surface()
     #suf.print_stab()
+    print(suf._Hmatrix)
